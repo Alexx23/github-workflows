@@ -35,6 +35,10 @@ on:
         required: false
         type: string
         default: "min"
+      free-disk-space:
+        description: "Free disk space before building"
+        type: boolean
+        default: false
     secrets:
       DOCKER_USER:
         required: true
@@ -54,6 +58,16 @@ jobs:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
+      - name: Free disk space
+        if: ${{ inputs.free-disk-space }}
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af
+          df -h
+
       - name: Checkout
         uses: actions/checkout@v4
 
