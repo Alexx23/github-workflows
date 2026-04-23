@@ -45,10 +45,16 @@ jobs:
           echo "sha_short=${SHA}" >> $GITHUB_OUTPUT
           echo "promoted_image_tagged=${{ inputs.image }}:${{ inputs.target-tag-prefix }}-${SHA}" >> $GITHUB_OUTPUT
 
+      - name: Extract Registry
+        id: parse
+        run: |
+          # Extrae la primera parte del string antes de la barra
+          echo "registry=$(echo "${{ inputs.image }}" | cut -d'/' -f1)" >> $GITHUB_OUTPUT
+
       - name: Docker login
         uses: docker/login-action@v3
         with:
-          registry: ${{ split(inputs.image, '/')[0] }}
+          registry: ${{ steps.parse.outputs.registry }}
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
