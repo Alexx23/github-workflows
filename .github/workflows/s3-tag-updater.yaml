@@ -1,0 +1,51 @@
+name: S3 Version Registry Updater
+
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        required: true
+        type: string
+        description: "Name of the service (used as prefix in S3 key)"
+      env:
+        required: true
+        type: string
+        description: "Target environment (e.g., dev, pre, pro)"
+      tag:
+        required: true
+        type: string
+        description: "Tag or version to register"
+      bucket-name:
+        required: true
+        type: string
+        description: "Name of the S3 bucket"
+      s3-endpoint:
+        required: true
+        type: string
+        description: "Endpoint of the S3-compatible service"
+      s3-region:
+        required: true
+        type: string
+        description: "Region of the S3-compatible service"
+    secrets:
+      S3_ACCESS_KEY_ID:
+        required: true
+      S3_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  update-version-file:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Version JSON
+        run: |
+          echo "{\"version\": \"${{ inputs.tag }}\"}" > version.json
+
+      - name: Upload to S3 Registry
+        run: |
+          aws s3 cp version.json s3://${{ inputs.bucket-name }}/${{ inputs.service-name }}/${{ inputs.env }}.json \
+            --endpoint-url ${{ inputs.s3-endpoint }} \
+            --region ${{ inputs.s3-region }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
