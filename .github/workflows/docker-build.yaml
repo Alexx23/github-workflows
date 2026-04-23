@@ -80,10 +80,12 @@ jobs:
         id: cache
         run: |
           if [ -n "${{ inputs.cache-image }}" ]; then
-            echo "ref=${{ inputs.cache-image }}" >> $GITHUB_OUTPUT
+            CACHE_REF="${{ inputs.cache-image }}"
           else
-            echo "ref=${{ inputs.image }}:buildcache" >> $GITHUB_OUTPUT
+            IMAGE_PATH=$(echo "${{ inputs.image }}" | cut -d'/' -f2-)
+            CACHE_REF="${{ steps.registry.outputs.url }}/${IMAGE_PATH}:buildcache"
           fi
+          echo "ref=$CACHE_REF" >> $GITHUB_OUTPUT
 
       - id: registry
         name: Detect registry
