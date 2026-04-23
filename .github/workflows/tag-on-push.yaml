@@ -16,13 +16,17 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # necesario para traer todos los tags
+          fetch-depth: 0
 
-      - name: Get latest tag
+      - name: Get latest version tag (ignoring timestamp)
         id: get_tag
         run: |
           git fetch --tags
-          latest_tag=$(git tag -l "v*" --sort=-v:refname | head -n 1)
+
+          latest_tag=$(git tag -l "v*" \
+            | sed -E 's/(v[0-9]+\.[0-9]+\.[0-9]+).*/\1/' \
+            | sort -V \
+            | tail -n 1)
 
           if [ -z "$latest_tag" ]; then
             latest_tag="v0.0.0"
@@ -33,23 +37,18 @@ jobs:
       - name: Calculate next version
         id: bump
         run: |
-          tag=${{ steps.get_tag.outputs.latest_tag }}
-
-          version=${tag#v}
+          tag="${{ steps.get_tag.outputs.latest_tag }}"
+          version="${tag#v}"
           IFS='.' read -r major minor patch <<< "$version"
-
           patch=$((patch + 1))
-
           if [ "$patch" -gt 9 ]; then
             patch=0
             minor=$((minor + 1))
           fi
-
           if [ "$minor" -gt 9 ]; then
             minor=0
             major=$((major + 1))
           fi
-
           new_version="v$major.$minor.$patch"
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
@@ -59,8 +58,9 @@ jobs:
           ts=$(date +"%Y%m%d%H%M")
           echo "timestamp=$ts" >> $GITHUB_OUTPUT
 
-      - name: Create tag
+      - name: Create and push tag
         run: |
           tag="${{ steps.bump.outputs.new_version }}-${{ steps.timestamp.outputs.timestamp }}"
-          git tag $tag
-          git push origin $tag
+          echo "Creating tag: $tag"
+          git tag "$tag"
+          git push origin "$tag"
