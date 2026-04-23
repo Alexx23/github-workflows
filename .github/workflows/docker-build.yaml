@@ -58,6 +58,7 @@ jobs:
     steps:
       - name: Free disk space
         if: ${{ inputs.free-disk-space }}
+        working-directory: /tmp
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
