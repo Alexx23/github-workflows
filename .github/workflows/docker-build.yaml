@@ -37,6 +37,7 @@ on:
         default: false
     secrets:
       DOCKER_URL:
+        description: "Custom Docker registry URL (optional, defaults to registry extracted from image name)"
         required: false
       DOCKER_USER:
         required: true
