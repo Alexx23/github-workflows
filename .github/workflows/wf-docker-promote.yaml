@@ -51,8 +51,6 @@ jobs:
           # Extrae la primera parte del string antes de la barra
           REGISTRY=$(echo "${{ inputs.image }}" | cut -d'/' -f1)
           echo "registry=${REGISTRY}" >> $GITHUB_OUTPUT
-          echo "image_name=${{ inputs.image }}"
-          echo "registry=${REGISTRY}"
 
       - name: Docker login
         uses: docker/login-action@v3
