@@ -117,13 +117,18 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
+      - name: Resolve image tag
+        id: image
+        run: |
+          IMAGE_PATH=$(echo "${{ inputs.image }}" | cut -d'/' -f2-)
+          echo "tag=${{ steps.registry.outputs.url }}/${IMAGE_PATH}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}" >> $GITHUB_OUTPUT
+
       - name: Docker build and push
         uses: docker/build-push-action@v5
         with:
           context: ${{ inputs.working-directory }}
           push: true
-          tags: ${{ inputs.image }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}
+          tags: ${{ steps.image.outputs.tag }}
           build-args: ${{ inputs.build-args }}
           cache-from: type=registry,ref=${{ steps.cache.outputs.ref }}
           cache-to: type=registry,ref=${{ steps.cache.outputs.ref }},mode=${{ inputs.cache-mode }}
-          registry: ${{ steps.registry.outputs.url }}
