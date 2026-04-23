@@ -37,7 +37,7 @@ on:
         default: false
     secrets:
       DOCKER_URL:
-        required: true
+        required: false
       DOCKER_USER:
         required: true
       DOCKER_PASS:
@@ -87,8 +87,12 @@ jobs:
       - id: registry
         name: Detect registry
         run: |
-          RAW="${{ secrets.DOCKER_URL }}"
-          REGISTRY=$(echo "$RAW" | sed 's#http://##;s#https://##')
+          if [ -n "${{ secrets.DOCKER_URL }}" ]; then
+            REGISTRY="${{ secrets.DOCKER_URL }}"
+          else
+            REGISTRY=$(echo "${{ inputs.image }}" | cut -d'/' -f1)
+          fi
+          echo "url=$REGISTRY" >> $GITHUB_OUTPUT
 
           if echo "$REGISTRY" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(:[0-9]+)?$'; then
             echo "is_ip=true" >> $GITHUB_OUTPUT
@@ -103,13 +107,13 @@ jobs:
         if: steps.registry.outputs.is_ip == 'true'
         run: |
           sudo mkdir -p /etc/docker
-          echo "{\"insecure-registries\": [\"${{ secrets.DOCKER_URL }}\"]}" | sudo tee -a /etc/docker/daemon.json
+          echo "{\"insecure-registries\": [\"${{ steps.registry.outputs.url }}\"]}" | sudo tee -a /etc/docker/daemon.json
           sudo systemctl restart docker
 
       - name: Docker login
         uses: docker/login-action@v3
         with:
-          registry: ${{ secrets.DOCKER_URL }}
+          registry: ${{ steps.registry.outputs.url }}
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
@@ -122,3 +126,4 @@ jobs:
           build-args: ${{ inputs.build-args }}
           cache-from: type=registry,ref=${{ steps.cache.outputs.ref }}
           cache-to: type=registry,ref=${{ steps.cache.outputs.ref }},mode=${{ inputs.cache-mode }}
+          registry: ${{ steps.registry.outputs.url }}
