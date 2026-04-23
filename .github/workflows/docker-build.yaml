@@ -60,6 +60,7 @@ jobs:
         if: ${{ inputs.free-disk-space }}
         working-directory: /tmp
         run: |
+          df -h
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
@@ -83,8 +84,29 @@ jobs:
             echo "ref=${{ inputs.image }}:buildcache" >> $GITHUB_OUTPUT
           fi
 
-      - name: Set up Docker Buildx
+      - name: Detect if registry is IP
+        run: |
+          REGISTRY="${{ secrets.DOCKER_URL }}"
+
+          # quitar http/https si existiera
+          REGISTRY=$(echo "$REGISTRY" | sed 's#http://##;s#https://##')
+
+          if echo "$REGISTRY" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(:[0-9]+)?$'; then
+            echo "IS_IP=true" >> $GITHUB_ENV
+          else
+            echo "IS_IP=false" >> $GITHUB_ENV
+          fi
+
+          echo "REGISTRY=$REGISTRY" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx (IP registry)
+        if: env.IS_IP == 'true'
         uses: docker/setup-buildx-action@v3
+        with:
+          config-inline: |
+            [registry."${{ env.REGISTRY }}"]
+              http = true
+              insecure = true
 
       - name: Docker login
         uses: docker/login-action@v3
