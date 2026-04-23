@@ -96,16 +96,15 @@ jobs:
             echo "is_ip=false" >> $GITHUB_OUTPUT
           fi
 
-          echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
-
-      - name: Set up Docker Buildx (IP registry)
-        if: steps.registry.outputs.is_ip == 'true'
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          config-inline: |
-            ["${{ steps.registry.outputs.registry }}"]
-              http = true
-              insecure = true
+
+      - name: Allow insecure Docker registry
+        if: steps.registry.outputs.is_ip == 'true'
+        run: |
+          sudo mkdir -p /etc/docker
+          echo "{\"insecure-registries\": [\"${{ secrets.DOCKER_URL }}\"]}" | sudo tee -a /etc/docker/daemon.json
+          sudo systemctl restart docker
 
       - name: Docker login
         uses: docker/login-action@v3
