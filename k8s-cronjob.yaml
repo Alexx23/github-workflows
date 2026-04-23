@@ -1,0 +1,68 @@
+name: K8s Deploy — Cronjob
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: "Full image name without tag (e.g. nexus.example.com/my-app)"
+        required: true
+        type: string
+      tag-prefix:
+        description: "Tag prefix used when the image was promoted (e.g. 'pro')"
+        required: true
+        type: string
+      namespace:
+        description: "Kubernetes namespace"
+        required: true
+        type: string
+      cronjob-name:
+        description: "Kubernetes cronjob name (e.g. app)"
+        required: true
+        type: string
+    secrets:
+      KUBECONFIG_BASE64:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Git SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Configure kubectl
+        env:
+          KUBECONFIG_BASE64: ${{ secrets.KUBECONFIG_BASE64 }}
+        run: |
+          mkdir -p ${HOME}/.kube
+          echo "$KUBECONFIG_BASE64" | base64 --decode > ${HOME}/.kube/config
+          kubectl config use-context default
+
+      - name: Update Cronjob image
+        run: |
+          IMAGE_TAG="${{ inputs.image }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}"
+          containers=$(kubectl get cronjob "${{ inputs.cronjob-name }}" \
+            -n ${{ inputs.namespace }} \
+            -o jsonpath='{.spec.template.spec.containers[*].name}')
+          for c in $containers; do
+            kubectl set image cronjob/${{ inputs.cronjob-name }} \
+              $c=$IMAGE_TAG \
+              -n ${{ inputs.namespace }}
+          done
+
+      - name: Annotate CronJob with Git SHA
+        run: |
+          kubectl annotate cronjob ${{ inputs.cronjob-name }} \
+            deployed-sha="${{ steps.vars.outputs.sha_short }}" \
+            deployed-at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -n ${{ inputs.namespace }} --overwrite
+
+      - name: Print deployed image
+        run: |
+          kubectl get cronjob/${{ inputs.cronjob-name }} \
+            -n ${{ inputs.namespace }} -o yaml | grep "image:"
+          echo ""
