@@ -16,6 +16,11 @@ on:
         description: "Prefix for the tag (e.g. 'temp' produces temp-<sha>)"
         required: true
         type: string
+      dockerfile:
+        description: "Path to the Dockerfile relative to the working directory"
+        required: false
+        type: string
+        default: "Dockerfile"
       build-args:
         description: "Docker build-args in KEY=VALUE format, one per line"
         required: false
@@ -135,6 +140,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ${{ inputs.working-directory }}
+          file: ${{ inputs.working-directory }}/${{ inputs.dockerfile }}
           push: true
           tags: ${{ steps.image.outputs.tag }}
           build-args: ${{ inputs.build-args }}
