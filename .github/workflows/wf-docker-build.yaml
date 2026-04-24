@@ -17,10 +17,10 @@ on:
         required: true
         type: string
       dockerfile:
-        description: "Path to the Dockerfile relative to the working directory"
+        description: "Dockerfile path. If empty, uses 'Dockerfile' inside working-directory"
         required: false
         type: string
-        default: "Dockerfile"
+        default: ""
       build-args:
         description: "Docker build-args in KEY=VALUE format, one per line"
         required: false
@@ -136,11 +136,22 @@ jobs:
           IMAGE_PATH=$(echo "${{ inputs.image }}" | cut -d'/' -f2-)
           echo "tag=${{ steps.registry.outputs.url }}/${IMAGE_PATH}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}" >> $GITHUB_OUTPUT
 
+      - name: Resolve Dockerfile path
+        id: dockerfile_path
+        run: |
+          if [ -z "${{ inputs.dockerfile }}" ]; then
+            # Si está vacío, usamos el working-directory + Dockerfile
+            echo "path=${{ inputs.working-directory }}/Dockerfile" >> $GITHUB_OUTPUT
+          else
+            # Si el usuario puso algo, usamos exactamente lo que puso
+            echo "path=${{ inputs.dockerfile }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Docker build and push
         uses: docker/build-push-action@v5
         with:
           context: ${{ inputs.working-directory }}
-          file: ${{ inputs.working-directory }}/${{ inputs.dockerfile }}
+          file: ${{ steps.dockerfile_path.outputs.path }}
           push: true
           tags: ${{ steps.image.outputs.tag }}
           build-args: ${{ inputs.build-args }}
