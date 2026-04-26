@@ -15,7 +15,7 @@ on:
         description: "Kubernetes namespace"
         required: true
         type: string
-      deployment:
+      deployment-name:
         description: "Kubernetes deployment name (e.g. app)"
         required: true
         type: string
@@ -50,18 +50,18 @@ jobs:
       - name: Update Deployment image
         run: |
           IMAGE_TAG="${{ inputs.image }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}"
-          containers=$(kubectl get deployment "${{ inputs.deployment }}" \
+          containers=$(kubectl get deployment "${{ inputs.deployment-name }}" \
             -n ${{ inputs.namespace }} \
             -o jsonpath='{.spec.template.spec.containers[*].name}')
           for c in $containers; do
-            kubectl set image deployment/${{ inputs.deployment }} \
+            kubectl set image deployment/${{ inputs.deployment-name }} \
               $c=$IMAGE_TAG \
               -n ${{ inputs.namespace }}
           done
 
       - name: Annotate Deployment with Git SHA
         run: |
-          kubectl annotate deployment ${{ inputs.deployment }} \
+          kubectl annotate deployment ${{ inputs.deployment-name }} \
             deployed-sha="${{ steps.vars.outputs.sha_short }}" \
             deployed-at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -n ${{ inputs.namespace }} --overwrite
@@ -69,12 +69,12 @@ jobs:
       - name: Wait for rollout
         run: |
           kubectl rollout status \
-            deployment/${{ inputs.deployment }} \
+            deployment/${{ inputs.deployment-name }} \
             -n ${{ inputs.namespace }} \
             --timeout=${{ inputs.rollout-timeout }}
 
       - name: Print deployed image
         run: |
-          kubectl get deployment/${{ inputs.deployment }} \
+          kubectl get deployment/${{ inputs.deployment-name }} \
             -n ${{ inputs.namespace }} -o yaml | grep "image:"
           echo ""
