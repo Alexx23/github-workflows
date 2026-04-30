@@ -47,7 +47,7 @@ jobs:
           IMAGE_TAG="${{ inputs.image }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}"
           containers=$(kubectl get cronjob "${{ inputs.cronjob-name }}" \
             -n ${{ inputs.namespace }} \
-            -o jsonpath='{.spec.template.spec.containers[*].name}')
+            -o jsonpath='{.spec.jobTemplate.spec.template.spec.containers[*].name}')
           for c in $containers; do
             kubectl set image cronjob/${{ inputs.cronjob-name }} \
               $c=$IMAGE_TAG \
