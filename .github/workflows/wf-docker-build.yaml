@@ -26,6 +26,11 @@ on:
         required: false
         type: string
         default: ""
+      build-contexts:
+        description: "Docker build-contexts in KEY=VALUE format, one per line"
+        required: false
+        type: string
+        default: ""
       cache-image:
         description: "Image ref used for registry cache (defaults to <image>:buildcache)"
         required: false
@@ -36,6 +41,11 @@ on:
         required: false
         type: string
         default: "min"
+      pre-build-commands:
+        description: "Optional list of shell commands to run before the Docker build (one per line)"
+        required: false
+        type: string
+        default: ""
       free-disk-space:
         description: "Free disk space before building"
         type: boolean
@@ -66,16 +76,37 @@ jobs:
       run:
         working-directory: ${{ inputs.working-directory }}
     steps:
+      - name: Free disk space (jlumbroso/free-disk-space)
+        if: ${{ inputs.free-disk-space }}
+        uses: jlumbroso/free-disk-space@main # última actualización: 2023
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+          
+          # all of these default to true, but feel free to set to
+          # "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+        
       - name: Free disk space
         if: ${{ inputs.free-disk-space }}
         working-directory: /tmp
         run: |
           df -h
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker image prune -af
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/share/vcpkg
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /opt/hostedtoolcache/go
+          sudo rm -rf /opt/hostedtoolcache/Ruby
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo docker system prune -af --volumes
           df -h
 
       - name: Checkout
@@ -151,6 +182,10 @@ jobs:
             echo "path=${{ inputs.dockerfile }}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Pre-build commands
+        if: ${{ inputs.pre-build-commands != '' }}
+        run: ${{ inputs.pre-build-commands }}
+
       - name: Docker build and push
         uses: docker/build-push-action@v5
         with:
@@ -159,6 +194,7 @@ jobs:
           push: true
           tags: ${{ steps.image.outputs.tag }}
           build-args: ${{ inputs.build-args }}
+          build-contexts: ${{ inputs.build-contexts }}
           cache-from: type=registry,ref=${{ steps.cache.outputs.ref }}
           cache-to: type=registry,ref=${{ steps.cache.outputs.ref }},mode=${{ inputs.cache-mode }}
 
