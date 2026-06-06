@@ -40,6 +40,10 @@ on:
         description: "Free disk space before building"
         type: boolean
         default: false
+      print-image-size:
+        description: "Print the total size of the built image after the build"
+        type: boolean
+        default: true
     secrets:
       DOCKER_URL:
         description: "Custom Docker registry URL (optional, defaults to registry extracted from image name)"
@@ -157,3 +161,17 @@ jobs:
           build-args: ${{ inputs.build-args }}
           cache-from: type=registry,ref=${{ steps.cache.outputs.ref }}
           cache-to: type=registry,ref=${{ steps.cache.outputs.ref }},mode=${{ inputs.cache-mode }}
+
+      - name: Print image size
+        if: ${{ inputs.print-image-size }}
+        working-directory: /tmp
+        run: |
+          SIZE_BYTES=$(docker inspect --format='{{.Size}}' "${{ steps.image.outputs.tag }}")
+          SIZE_MB=$(echo "scale=2; $SIZE_BYTES / 1048576" | bc)
+          SIZE_GB=$(echo "scale=2; $SIZE_BYTES / 1073741824" | bc)
+          echo "### 🐳 Docker Image Size" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | \`${{ steps.image.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Size | ${SIZE_MB} MB (${SIZE_GB} GB) |" >> $GITHUB_STEP_SUMMARY
+          echo "Image size: ${SIZE_MB} MB (${SIZE_GB} GB)"
